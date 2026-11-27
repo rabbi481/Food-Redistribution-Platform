@@ -1,0 +1,218 @@
+// Prisma schema for FoodBridge (PostgreSQL)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  donor
+  receiver
+  volunteer
+  admin
+}
+
+enum UserStatus {
+  active
+  suspended
+  pending
+}
+
+enum DonationCategory {
+  cooked_meals
+  raw_ingredients
+  bakery
+  produce
+  dairy
+  canned_packaged
+  beverages
+  other
+}
+
+enum DonationStatus {
+  available
+  partially_claimed
+  reserved
+  completed
+  expired
+  cancelled
+}
+
+enum RequestStatus {
+  pending
+  approved
+  rejected
+  assigned
+  picked_up
+  in_transit
+  delivered
+  cancelled
+}
+
+enum DeliveryMethod {
+  volunteer_delivery
+  receiver_pickup
+}
+
+enum TaskStatus {
+  available
+  assigned
+  picked_up
+  in_transit
+  delivered
+  cancelled
+}
+
+model User {
+  id               String       @id @default(uuid())
+  name             String
+  email            String       @unique
+  password         String
+  phone            String
+  role             Role         @default(donor)
+  organizationName String?      @default("")
+  organizationType String?      @default("Individual")
+  profileImage     String?      @default("https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80")
+  bio              String?      @db.Text
+  status           UserStatus   @default(active)
+  isVerified       Boolean      @default(false)
+
+  // Address fields
+  street           String?      @default("")
+  city             String?      @default("")
+  state            String?      @default("")
+  zipCode          String?      @default("")
+  formattedAddress String?      @default("")
+
+  // Relationships
+  donations        Donation[]
+  requests         Request[]
+  volunteerTasks   VolunteerTask[]
+
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([role])
+  @@index([status])
+  @@map("users")
+}
+
+model Donation {
+  id                  String           @id @default(uuid())
+  donorId             String
+  donor               User             @relation(fields: [donorId], references: [id], onDelete: Cascade)
+  foodName            String
+  description         String           @db.Text
+  category            DonationCategory @default(cooked_meals)
+  quantity            Int
+  remainingQuantity   Int
+  unit                String           @default("servings")
+  foodImage           String?          @default("https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80") @db.Text
+
+  // Pickup location fields
+  pickupStreet        String?          @default("")
+  pickupCity          String?          @default("")
+  pickupState         String?          @default("")
+  pickupZipCode       String?          @default("")
+  pickupAddress       String           @db.Text
+  pickupInstructions  String?          @default("") @db.Text
+
+  // Timelines
+  pickupDate          DateTime
+  expiryDate          DateTime
+
+  // Dietary and food safety flags
+  isVegetarian        Boolean          @default(false)
+  isVegan             Boolean          @default(false)
+  isHalal             Boolean          @default(false)
+  isGlutenFree        Boolean          @default(false)
+  containsAllergens   Boolean          @default(false)
+  allergens           String?          @default("")
+  storageRequirements String           @default("room_temperature")
+
+  status              DonationStatus   @default(available)
+
+  // Relationships
+  requests            Request[]
+  volunteerTasks      VolunteerTask[]
+
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  @@index([donorId])
+  @@index([status])
+  @@index([category])
+  @@index([expiryDate])
+  @@map("donations")
+}
+
+model Request {
+  id                String         @id @default(uuid())
+  donationId        String
+  donation          Donation       @relation(fields: [donationId], references: [id], onDelete: Cascade)
+  receiverId        String
+  receiver          User           @relation(fields: [receiverId], references: [id], onDelete: Cascade)
+
+  requestedQuantity Int
+  unit              String         @default("servings")
+  message           String         @db.Text
+  deliveryMethod    DeliveryMethod @default(volunteer_delivery)
+  deliveryAddress   String?        @default("") @db.Text
+  contactPhone      String?        @default("")
+
+  status            RequestStatus  @default(pending)
+  rejectionReason   String?        @default("") @db.Text
+
+  // Relationship to VolunteerTask (1-to-1)
+  volunteerTask     VolunteerTask?
+
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@index([donationId])
+  @@index([receiverId])
+  @@index([status])
+  @@map("requests")
+}
+
+model VolunteerTask {
+  id                     String      @id @default(uuid())
+  requestId              String      @unique
+  request                Request     @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  donationId             String
+  donation               Donation    @relation(fields: [donationId], references: [id], onDelete: Cascade)
+  volunteerId            String?
+  volunteer              User?       @relation(fields: [volunteerId], references: [id], onDelete: SetNull)
+
+  // Pickup details
+  pickupAddress          String      @db.Text
+  pickupContactPerson    String?     @default("")
+  pickupContactPhone     String?     @default("")
+  pickupInstructions     String?     @default("") @db.Text
+
+  // Delivery details
+  deliveryAddress        String      @db.Text
+  deliveryRecipientName  String?     @default("")
+  deliveryRecipientPhone String?     @default("")
+  deliveryInstructions   String?     @default("") @db.Text
+
+  status                 TaskStatus  @default(available)
+  assignedAt             DateTime?
+  pickedUpAt             DateTime?
+  deliveredAt            DateTime?
+
+  notes                  String?     @default("") @db.Text
+  confirmationCode       String?     @default("")
+
+  createdAt              DateTime    @default(now())
+  updatedAt              DateTime    @updatedAt
+
+  @@index([volunteerId])
+  @@index([donationId])
+  @@index([status])
+  @@map("volunteer_tasks")
+}

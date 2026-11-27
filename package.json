@@ -1,0 +1,25 @@
+{
+  "name": "food-redistribution-platform",
+  "version": "1.0.0",
+  "description": "Food Redistribution Platform built with React, Node.js, PostgreSQL, and Prisma ORM",
+  "scripts": {
+    "start": "node backend/server.js",
+    "backend": "cd backend && npm run dev",
+    "frontend": "cd frontend && npm run dev",
+    "seed": "cd backend && npm run seed",
+    "build": "cd frontend && npm run build",
+    "prisma:generate": "cd backend && npx prisma generate",
+    "prisma:push": "cd backend && npx prisma db push",
+    "prisma:migrate": "cd backend && npx prisma migrate dev"
+  },
+  "keywords": [
+    "food-waste",
+    "redistribution",
+    "postgresql",
+    "prisma",
+    "react",
+    "express"
+  ],
+  "author": "FoodBridge Team",
+  "license": "ISC"
+}
